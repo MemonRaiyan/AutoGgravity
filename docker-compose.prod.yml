@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - autogravity_network
+    restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=file:../database/prod.db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - autogravity_network
+    restart: always
+    volumes:
+      - app_data:/usr/src/app/database
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:4000
+    depends_on:
+      - api
+    networks:
+      - autogravity_network
+    restart: always
+
+volumes:
+  redis_data:
+  app_data:
+
+networks:
+  autogravity_network:
+    driver: bridge
