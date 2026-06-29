@@ -1,74 +1,121 @@
 # AutoGravity AI
 
-AutoGravity AI is an automated platform for uploading videos from Google Drive to multiple social media platforms (YouTube, Meta, Telegram) utilizing AI for content processing.
+AutoGravity AI is an enterprise-grade automation platform that streamlines the process of fetching videos from Google Drive and distributing them across multiple social media channels (YouTube Shorts, Instagram Reels, Facebook Reels) leveraging AI for metadata generation.
 
-## 🚀 Features
-- **Clean Architecture**: Monorepo using npm workspaces & Turborepo.
-- **Frontend**: Next.js 15, TailwindCSS, shadcn/ui.
-- **Backend**: Express, TypeScript, Prisma (SQLite).
-- **Docker Ready**: Multi-stage Dockerfiles and compose setups.
+---
 
-## 📁 Project Structure
+## Architecture
+
+AutoGravity AI uses a modern, modular Monorepo architecture built with Turborepo, Next.js 15, and Node.js.
+
+\`\`\`mermaid
+graph TD
+  subgraph Frontend
+    D[Dashboard - Next.js]
+  end
+
+  subgraph Packages
+    UI[UI Components]
+    Shared[Shared/Logger]
+    Config[Config/Zod]
+  end
+
+  subgraph Backend
+    API[Express API]
+    Worker[BullMQ Workers]
+  end
+
+  subgraph Infrastructure
+    DB[(PostgreSQL)]
+    Redis[(Redis)]
+  end
+
+  D --> API
+  D -.-> UI
+  D -.-> Config
+  API -.-> Shared
+  API -.-> Config
+  Worker -.-> Shared
+  API --> DB
+  API --> Redis
+  Worker --> Redis
+  Worker --> DB
 \`\`\`
-autogravity-ai/
-├── apps/
-│   ├── api/          # Express API server
-│   └── dashboard/    # Next.js 15 Admin Dashboard
-├── packages/
-│   ├── config/       # Shared environment & Zod schemas
-│   ├── shared/       # Shared utils
-│   ├── types/        # Shared TypeScript interfaces
-│   └── ui/           # Shared UI configs
-├── database/         # Prisma schema and SQLite db
-├── docker/           # Dev Dockerfiles
-└── scripts/          # Workspace utilities
+
+## Features
+
+- **Multi-Platform Support**: YouTube, Meta (Instagram/Facebook), Telegram.
+- **AI Automation**: Dynamic prompt generation for titles, descriptions, and tags.
+- **Job Queuing**: Robust distributed job queuing via BullMQ & Redis.
+- **Modular Monorepo**: Dedicated `@autogravity/ui`, `@autogravity/config`, and `@autogravity/shared` packages.
+- **Dark Mode**: fully responsive, mobile-first SaaS dashboard using `shadcn/ui` and Tailwind v4.
+
+---
+
+## Installation & Setup
+
+### Prerequisites
+- Node.js >= 20.x
+- Docker & Docker Compose
+- npm >= 10.x
+
+### 1. Clone the repository
+\`\`\`bash
+git clone https://github.com/your-org/autogravity-ai.git
+cd autogravity-ai
 \`\`\`
 
-## 🛠️ Installation
+### 2. Install Dependencies
+\`\`\`bash
+npm install
+\`\`\`
 
-1. **Clone the repository** (if applicable):
-   \`\`\`bash
-   git clone <repo-url>
-   cd autogravity-ai
-   \`\`\`
+### 3. Environment Setup
+Copy the example environment files for both API and Dashboard.
+*(Ensure `DATABASE_URL` and `REDIS_URL` point to the local Docker instances for development)*
 
-2. **Install Dependencies**:
-   \`\`\`bash
-   npm install
-   \`\`\`
+### 4. Start Infrastructure (PostgreSQL & Redis)
+\`\`\`bash
+docker-compose up -d postgres redis
+\`\`\`
 
-3. **Database Setup**:
-   \`\`\`bash
-   cd database
-   npx prisma db push
-   npx prisma generate
-   cd ..
-   \`\`\`
+### 5. Database Migrations
+Generate the Prisma client and push the schema to PostgreSQL:
+\`\`\`bash
+cd database
+npx prisma generate
+npx prisma db push
+\`\`\`
 
-## 💻 Development
-
-Run the entire monorepo in development mode using Turborepo:
+### 6. Start Development Servers
+Run the full monorepo in development mode using Turborepo:
 \`\`\`bash
 npm run dev
 \`\`\`
 - **Dashboard**: http://localhost:3000
-- **API**: http://localhost:4000/health
+- **API Server**: http://localhost:4000
+- **Swagger Docs**: http://localhost:4000/api-docs
 
-## 🐳 Docker
+---
 
-Start the development environment using Docker Compose:
+## Docker (Production)
+
+To run the entire platform via Docker in production:
 \`\`\`bash
-docker-compose up --build
+docker-compose -f docker-compose.prod.yml up -d --build
 \`\`\`
+This provisions health-checked containers for PostgreSQL, Redis, API, and the Next.js Dashboard.
 
-For production:
-\`\`\`bash
-docker-compose -f docker-compose.prod.yml up --build -d
-\`\`\`
+---
 
-## 🗺️ Roadmap
-- [ ] Phase 1A: Foundation Setup (Completed)
-- [ ] Phase 1B: Authentication & Database Seed
-- [ ] Phase 2: Google Drive & Social Media Integrations
-- [ ] Phase 3: AI Processing (OpenRouter/Ollama)
-- [ ] Phase 4: Job Queues & Scheduling (BullMQ/Redis)
+## Roadmap
+
+- **Module 1A**: Foundation, Database Design, Modular Architecture, UI Package. *(Completed)*
+- **Module 1B**: Complete Authentication flow, User Roles, Settings.
+- **Module 2**: Google Drive Integration & Social Media OAuth.
+- **Module 3**: AI Processing & Metadata Pipeline.
+- **Module 4**: BullMQ Worker Implementation & Auto-Uploads.
+
+---
+
+*Built for scalability, engineered with precision.*

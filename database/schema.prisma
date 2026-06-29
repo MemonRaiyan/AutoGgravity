@@ -3,64 +3,173 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+enum Platform {
+  YOUTUBE
+  META
+  TELEGRAM
+}
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  UPLOADING
+  COMPLETED
+  FAILED
+}
+
+enum ChannelStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+  RATE_LIMITED
+}
+
+enum JobPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum Language {
+  EN
+  ES
+  FR
+  DE
+  HI
+  OTHER
+}
+
+enum Category {
+  EDUCATION
+  ENTERTAINMENT
+  GAMING
+  TECH
+  NEWS
+  OTHER
+}
+
+// -----------------------------------------------------------------------------
+// MODELS
+// -----------------------------------------------------------------------------
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      String   @default("ADMIN")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         String    @default("ADMIN")
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 }
 
 model Channel {
-  id           String   @id @default(cuid())
-  platform     String   // YOUTUBE, META, TELEGRAM
+  id           String               @id @default(cuid())
   name         String
-  accessToken  String?
+  platform     Platform
+  status       ChannelStatus        @default(ACTIVE)
+  connections  PlatformConnection[]
+  videos       Video[]
+  schedules    Schedule[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model PlatformConnection {
+  id           String   @id @default(cuid())
+  channelId    String
+  channel      Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  accessToken  String
   refreshToken String?
-  isActive     Boolean  @default(true)
+  scopes       String?
+  expiresAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  videos       Video[]
+
+  @@unique([channelId])
 }
 
 model Video {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
+  channelId   String
+  channel     Channel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
   title       String
   description String?
   driveUrl    String?
   fileId      String?
-  status      String   @default("PENDING") // PENDING, DOWNLOADING, UPLOADING, COMPLETED, FAILED
-  channelId   String
-  channel     Channel  @relation(fields: [channelId], references: [id])
+  status      UploadStatus    @default(PENDING)
+  language    Language        @default(EN)
+  category    Category        @default(OTHER)
   history     UploadHistory[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model QueueJob {
+  id        String       @id @default(cuid())
+  jobId     String       @unique
+  priority  JobPriority  @default(NORMAL)
+  status    String       // BullMQ status: waiting, active, completed, failed
+  type      String       // DOWNLOAD, UPLOAD, AI_PROCESS
+  data      Json
+  result    Json?
+  error     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model UploadHistory {
+  id        String       @id @default(cuid())
+  videoId   String
+  video     Video        @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  platform  Platform
+  url       String?
+  status    UploadStatus
+  error     String?
+  createdAt DateTime     @default(now())
+}
+
+model Prompt {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  template    String   // Contains variables like {{title}}, {{context}}
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-model QueueJob {
-  id        String   @id @default(cuid())
-  jobId     String   @unique
-  status    String   // WAITING, ACTIVE, COMPLETED, FAILED
-  type      String   // DOWNLOAD, UPLOAD, AI_PROCESS
-  data      String   // JSON string
-  result    String?  // JSON string
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Schedule {
+  id          String   @id @default(cuid())
+  channelId   String
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  cron        String   // Cron expression
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model UploadHistory {
+model Notification {
   id        String   @id @default(cuid())
-  videoId   String
-  video     Video    @relation(fields: [videoId], references: [id])
-  platform  String
-  url       String?
-  status    String   // SUCCESS, FAILED
-  error     String?
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String   // INFO, WARNING, ERROR
   createdAt DateTime @default(now())
 }
 
@@ -74,10 +183,12 @@ model Settings {
 
 model Analytics {
   id        String   @id @default(cuid())
+  platform  Platform
   date      DateTime @default(now())
-  platform  String
   views     Int      @default(0)
   likes     Int      @default(0)
   shares    Int      @default(0)
   createdAt DateTime @default(now())
+
+  @@unique([platform, date])
 }

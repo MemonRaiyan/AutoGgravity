@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: autogravity
+      POSTGRES_PASSWORD: autogravity_secret
+      POSTGRES_DB: autogravity
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - autogravity_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autogravity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     ports:
@@ -10,6 +29,11 @@ services:
     networks:
       - autogravity_network
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -21,15 +45,16 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4000
-      - DATABASE_URL=file:../database/prod.db
+      - DATABASE_URL=postgresql://autogravity:autogravity_secret@postgres:5432/autogravity?schema=public
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - autogravity_network
     restart: always
-    volumes:
-      - app_data:/usr/src/app/database
 
   dashboard:
     build:
@@ -48,8 +73,8 @@ services:
     restart: always
 
 volumes:
+  pgdata:
   redis_data:
-  app_data:
 
 networks:
   autogravity_network:
