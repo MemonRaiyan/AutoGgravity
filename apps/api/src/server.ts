@@ -7,6 +7,9 @@ import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
 import channelRoutes from './routes/channel.routes';
 import queueRoutes from './routes/queue.routes';
+import videoRoutes from './routes/video.routes';
+import settingsRoutes from './routes/settings.routes';
+import analyticsRoutes from './routes/analytics.routes';
 import './workers'; // Initialize BullMQ workers
 
 const app = express();
@@ -21,6 +24,9 @@ app.use('/', healthRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/queue', queueRoutes);
+app.use('/api/videos', videoRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.listen(env.PORT, () => {
   logger.info(`Server is running on http://localhost:${env.PORT}`);
